@@ -15,13 +15,14 @@
     .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     body { -webkit-tap-highlight-color: transparent; }
+    .touch-none { touch-action: none; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen overflow-hidden select-none">
   <div id="root" class="h-full"></div>
 
   <script type="text/babel">
-    const { useState, useMemo, useEffect } = React;
+    const { useState, useMemo, useEffect, useRef } = React;
 
     const INITIAL_GUESTS = [
       { id: "g1", name: "Julie Meyers", category: "Family", partnerId: null },
@@ -86,14 +87,14 @@
     ];
 
     const INITIAL_TABLES = [
-      { id: "t1", name: "Table 1 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
-      { id: "t2", name: "Table 2 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
-      { id: "t3", name: "Table 3 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
-      { id: "t4", name: "Table 4 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
-      { id: "t5", name: "Table 5 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
-      { id: "t6", name: "Table 6 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
-      { id: "t7", name: "Table 7 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
-      { id: "t8", name: "Table 8 (Rectangle)", type: "rectangle", unitCount: 1, useEnds: true, seats: [] }
+      { id: "t1", name: "Table 1 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [], x: 40, y: 40 },
+      { id: "t2", name: "Table 2 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [], x: 380, y: 40 },
+      { id: "t3", name: "Table 3 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [], x: 720, y: 40 },
+      { id: "t4", name: "Table 4 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [], x: 40, y: 440 },
+      { id: "t5", name: "Table 5 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [], x: 380, y: 440 },
+      { id: "t6", name: "Table 6 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [], x: 720, y: 440 },
+      { id: "t7", name: "Table 7 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [], x: 40, y: 840 },
+      { id: "t8", name: "Table 8 (Rectangle)", type: "rectangle", unitCount: 1, useEnds: true, seats: [], x: 380, y: 840 }
     ];
 
     function calculateCapacity(type, units, useEnds) {
@@ -104,36 +105,43 @@
     }
 
     function App() {
-      // LocalStorage recovery
       const [guests, setGuests] = useState(() => {
-        const saved = localStorage.getItem("wedding_guests");
+        const saved = localStorage.getItem("wedding_guests_v2");
         return saved ? JSON.parse(saved) : INITIAL_GUESTS;
       });
 
       const [tables, setTables] = useState(() => {
-        const saved = localStorage.getItem("wedding_tables");
-        return saved ? JSON.parse(saved) : INITIAL_TABLES;
+        const saved = localStorage.getItem("wedding_tables_v2");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return parsed.map((t, idx) => ({
+            ...t,
+            x: t.x !== undefined ? t.x : (idx % 2) * 340 + 30,
+            y: t.y !== undefined ? t.y : Math.floor(idx / 2) * 380 + 30
+          }));
+        }
+        return INITIAL_TABLES;
       });
 
       const [rules, setRules] = useState(() => {
-        const saved = localStorage.getItem("wedding_rules");
+        const saved = localStorage.getItem("wedding_rules_v2");
         return saved ? JSON.parse(saved) : [];
       });
 
       useEffect(() => {
-        localStorage.setItem("wedding_guests", JSON.stringify(guests));
+        localStorage.setItem("wedding_guests_v2", JSON.stringify(guests));
       }, [guests]);
 
       useEffect(() => {
-        localStorage.setItem("wedding_tables", JSON.stringify(tables));
+        localStorage.setItem("wedding_tables_v2", JSON.stringify(tables));
       }, [tables]);
 
       useEffect(() => {
-        localStorage.setItem("wedding_rules", JSON.stringify(rules));
+        localStorage.setItem("wedding_rules_v2", JSON.stringify(rules));
       }, [rules]);
 
       const [selectedCategory, setSelectedCategory] = useState("ALL");
-      const [activeTab, setActiveTab] = useState("chart"); // 'chart', 'guests', 'rules'
+      const [activeTab, setActiveTab] = useState("chart");
       const [newGuestName, setNewGuestName] = useState("");
       const [newGuestCategory, setNewGuestCategory] = useState("Friends");
 
@@ -141,6 +149,71 @@
       const [ruleGuestA, setRuleGuestA] = useState("");
       const [ruleGuestB, setRuleGuestB] = useState("");
       const [ruleType, setRuleType] = useState("CANNOT_SIT_TOGETHER");
+
+      // Dragging Table State
+      const draggingTableRef = useRef(null);
+
+      const handleTablePointerDown = (e, tableId) => {
+        const table = tables.find(t => t.id === tableId);
+        if (!table) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+        draggingTableRef.current = {
+          tableId,
+          startX: clientX,
+          startY: clientY,
+          initialX: table.x || 0,
+          initialY: table.y || 0
+        };
+
+        const handlePointerMove = (moveEvt) => {
+          if (!draggingTableRef.current) return;
+          const currentX = moveEvt.clientX || (moveEvt.touches && moveEvt.touches[0].clientX);
+          const currentY = moveEvt.clientY || (moveEvt.touches && moveEvt.touches[0].clientY);
+
+          const deltaX = currentX - draggingTableRef.current.startX;
+          const deltaY = currentY - draggingTableRef.current.startY;
+
+          const nextX = Math.max(10, draggingTableRef.current.initialX + deltaX);
+          const nextY = Math.max(10, draggingTableRef.current.initialY + deltaY);
+
+          setTables(prev => prev.map(t => 
+            t.id === draggingTableRef.current.tableId ? { ...t, x: nextX, y: nextY } : t
+          ));
+        };
+
+        const handlePointerUp = () => {
+          draggingTableRef.current = null;
+          window.removeEventListener("mousemove", handlePointerMove);
+          window.removeEventListener("mouseup", handlePointerUp);
+          window.removeEventListener("touchmove", handlePointerMove);
+          window.removeEventListener("touchend", handlePointerUp);
+        };
+
+        window.addEventListener("mousemove", handlePointerMove);
+        window.addEventListener("mouseup", handlePointerUp);
+        window.addEventListener("touchmove", handlePointerMove, { passive: false });
+        window.addEventListener("touchend", handlePointerUp);
+      };
+
+      // Auto-arrange layout grid
+      const arrangeLayout = (style) => {
+        setTables(prev => {
+          return prev.map((t, idx) => {
+            if (style === 'grid') {
+              const col = idx % 2;
+              const row = Math.floor(idx / 2);
+              return { ...t, x: 30 + col * 340, y: 30 + row * 400 };
+            } else if (style === 'rows') {
+              const col = idx % 3;
+              const row = Math.floor(idx / 3);
+              return { ...t, x: 30 + col * 350, y: 30 + row * 380 };
+            }
+            return t;
+          });
+        });
+      };
 
       // Seated guest lookup
       const seatedGuestMap = useMemo(() => {
@@ -166,20 +239,19 @@
           if (rule.type === "CANNOT_SIT_TOGETHER" && tableA && tableB && tableA === tableB) {
             viols.push({
               tableId: tableA,
-              message: `${gA.name} and ${gB.name} cannot be seated at the same table!`
+              message: `${gA.name} and ${gB.name} cannot sit together!`
             });
           }
           if (rule.type === "MUST_SIT_TOGETHER" && tableA && tableB && tableA !== tableB) {
             viols.push({
               tableId: tableA,
-              message: `${gA.name} and ${gB.name} must sit at the same table!`
+              message: `${gA.name} and ${gB.name} must sit together!`
             });
           }
         });
         return viols;
       }, [rules, seatedGuestMap, guests]);
 
-      // Seat a guest directly (tap or drop)
       const seatGuest = (guestId, tableId) => {
         setTables(prev => prev.map(t => {
           const cleanSeats = t.seats.filter(id => id !== guestId);
@@ -202,19 +274,12 @@
         })));
       };
 
-      // Desktop Drag & Drop handlers
-      const handleDragStart = (e, guestId) => e.dataTransfer.setData("text/plain", guestId);
-      const handleDropOnTable = (e, tableId) => {
-        e.preventDefault();
-        const guestId = e.dataTransfer.getData("text/plain");
-        if (guestId) seatGuest(guestId, tableId);
-      };
-
-      // Table adjustments
       const addTable = (type) => {
         const newId = "t_" + Date.now();
-        const name = `Table ${tables.length + 1} (${type === "circle" ? "Round" : "Rectangle"})`;
-        setTables([...tables, { id: newId, name, type, unitCount: 1, useEnds: true, seats: [] }]);
+        const count = tables.length + 1;
+        const name = `Table ${count} (${type === "circle" ? "Round" : "Rectangle"})`;
+        const offset = (tables.length % 4) * 60;
+        setTables([...tables, { id: newId, name, type, unitCount: 1, useEnds: true, seats: [], x: 60 + offset, y: 60 + offset }]);
       };
 
       const removeTable = (tableId) => {
@@ -239,7 +304,6 @@
         }));
       };
 
-      // Auto-suggest layout algorithm
       const runSuggestedLayout = () => {
         let currentTables = tables.map(t => ({ ...t, seats: [] }));
         const visited = new Set();
@@ -291,51 +355,54 @@
       return (
         <div class="flex flex-col h-screen overflow-hidden">
           {/* Main Top Header */}
-          <header class="bg-slate-900 text-white px-4 py-3 flex flex-wrap items-center justify-between shadow-md flex-shrink-0 gap-2">
+          <header class="bg-slate-900 text-white px-3 py-2.5 flex flex-wrap items-center justify-between shadow-md flex-shrink-0 gap-2">
             <div>
-              <h1 class="text-base font-bold flex items-center gap-1.5">🥂 Seating Planner</h1>
-              <p class="text-[11px] text-slate-400">Total: {guests.length} | Seated: {Object.keys(seatedGuestMap).length} | Left: {guests.length - Object.keys(seatedGuestMap).length}</p>
+              <h1 class="text-sm md:text-base font-bold flex items-center gap-1.5">🥂 Seating Planner</h1>
+              <p class="text-[10px] md:text-[11px] text-slate-400">Total: {guests.length} | Seated: {Object.keys(seatedGuestMap).length} | Left: {guests.length - Object.keys(seatedGuestMap).length}</p>
             </div>
 
             <div class="flex items-center gap-1.5 flex-wrap">
-              <button onClick={() => addTable('circle')} class="px-2.5 py-1 bg-indigo-600 active:bg-indigo-700 rounded text-xs font-semibold">
+              <button onClick={() => addTable('circle')} class="px-2 py-1 bg-indigo-600 active:bg-indigo-700 rounded text-xs font-semibold">
                 + Round
               </button>
-              <button onClick={() => addTable('rectangle')} class="px-2.5 py-1 bg-blue-600 active:bg-blue-700 rounded text-xs font-semibold">
+              <button onClick={() => addTable('rectangle')} class="px-2 py-1 bg-blue-600 active:bg-blue-700 rounded text-xs font-semibold">
                 + Rect
               </button>
-              <button onClick={runSuggestedLayout} class="px-3 py-1 bg-emerald-600 active:bg-emerald-700 rounded text-xs font-bold shadow">
+              <button onClick={() => arrangeLayout('grid')} class="px-2 py-1 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 rounded text-xs font-medium">
+                ⊞ Reset Grid
+              </button>
+              <button onClick={runSuggestedLayout} class="px-2.5 py-1 bg-emerald-600 active:bg-emerald-700 rounded text-xs font-bold shadow">
                 ⚡ Auto-Fill
               </button>
             </div>
           </header>
 
           {/* Navigation Bar */}
-          <div class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs flex-shrink-0">
+          <div class="bg-white border-b border-slate-200 px-4 py-1.5 flex items-center justify-between text-xs flex-shrink-0">
             <div class="flex space-x-3">
-              <button onClick={() => setActiveTab('chart')} class={`font-bold pb-1 ${activeTab === 'chart' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500'}`}>Floorplan</button>
+              <button onClick={() => setActiveTab('chart')} class={`font-bold pb-1 ${activeTab === 'chart' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500'}`}>Floorplan Canvas</button>
               <button onClick={() => setActiveTab('guests')} class={`font-bold pb-1 ${activeTab === 'guests' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500'}`}>Guest List ({guests.length})</button>
               <button onClick={() => setActiveTab('rules')} class={`font-bold pb-1 ${activeTab === 'rules' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500'}`}>Rules ({rules.length})</button>
             </div>
 
             {violations.length > 0 && (
-              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[11px] font-bold">
-                ⚠️ {violations.length} Rule Alert
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                ⚠️ {violations.length} Alert{violations.length > 1 ? 's' : ''}
               </span>
             )}
           </div>
 
           {/* Tab 1: Floorplan & Assignment */}
           {activeTab === 'chart' && (
-            <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
-              {/* Unseated Guests Panel */}
-              <div class="w-full md:w-80 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col max-h-[38vh] md:max-h-full flex-shrink-0">
-                <div class="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
-                  <span class="text-xs font-bold text-slate-600">Unassigned ({unassignedList.length})</span>
+            <div class="flex flex-col md:flex-row flex-1 overflow-hidden relative">
+              {/* Left / Drawer: Guest Tray */}
+              <div class="w-full md:w-72 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col max-h-[35vh] md:max-h-full flex-shrink-0 z-20 shadow-md">
+                <div class="p-2 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-1">
+                  <span class="text-[11px] font-bold text-slate-700">Unassigned ({unassignedList.length})</span>
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    class="text-xs border border-slate-300 rounded px-2 py-1 bg-white"
+                    class="text-[11px] border border-slate-300 rounded px-1.5 py-0.5 bg-white"
                   >
                     <option value="ALL">All Groups</option>
                     <option value="Family">Family</option>
@@ -344,25 +411,21 @@
                   </select>
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
+                <div class="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">
                   {unassignedList.length === 0 ? (
-                    <div class="text-center py-6 text-xs text-slate-400">All guests assigned! 🎉</div>
+                    <div class="text-center py-6 text-xs text-slate-400">All guests seated! 🎉</div>
                   ) : (
                     unassignedList.map(g => (
                       <div
                         key={g.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, g.id)}
-                        class="p-2 bg-slate-50 border border-slate-200 rounded shadow-sm flex flex-col gap-1 text-xs"
+                        class="p-2 bg-slate-50 border border-slate-200 rounded shadow-sm text-xs flex flex-col gap-1"
                       >
                         <div class="flex items-center justify-between">
                           <span class="font-bold text-slate-800">{g.name}</span>
-                          <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 font-medium">{g.category}</span>
+                          <span class="text-[9px] px-1 py-0.2 rounded bg-slate-200 font-medium">{g.category}</span>
                         </div>
-
-                        {/* Mobile One-Tap Assignment Dropdown */}
-                        <div class="flex items-center gap-1.5 mt-1 pt-1 border-t border-slate-100">
-                          <span class="text-[10px] text-slate-400">Seat at:</span>
+                        <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                          <span class="text-[10px] text-slate-400">Seat:</span>
                           <select
                             onChange={(e) => {
                               if (e.target.value) {
@@ -379,7 +442,7 @@
                               const full = t.seats.length >= cap;
                               return (
                                 <option key={t.id} value={t.id} disabled={full}>
-                                  {t.name} ({t.seats.length}/{cap}){full ? ' - Full' : ''}
+                                  {t.name} ({t.seats.length}/{cap}){full ? ' (Full)' : ''}
                                 </option>
                               );
                             })}
@@ -391,9 +454,9 @@
                 </div>
               </div>
 
-              {/* Table Canvas Grid */}
-              <div class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-100 custom-scrollbar">
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {/* Freeform Movable Floorplan Canvas */}
+              <div class="flex-1 overflow-auto bg-slate-200/70 p-4 relative custom-scrollbar">
+                <div class="relative w-[1800px] h-[1800px] bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px]">
                   {tables.map(t => {
                     const capacity = calculateCapacity(t.type, t.unitCount, t.useEnds);
                     const tableViols = violations.filter(v => v.tableId === t.id);
@@ -401,14 +464,22 @@
                     return (
                       <div
                         key={t.id}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => handleDropOnTable(e, t.id)}
-                        class={`bg-white rounded-xl shadow-sm border p-3.5 flex flex-col justify-between transition-all ${
-                          tableViols.length > 0 ? 'border-red-400 ring-2 ring-red-200' : 'border-slate-200'
+                        style={{
+                          transform: `translate3d(${t.x || 20}px, ${t.y || 20}px, 0)`,
+                          width: '310px'
+                        }}
+                        class={`absolute bg-white rounded-xl shadow-md border flex flex-col justify-between transition-shadow select-none ${
+                          tableViols.length > 0 ? 'border-red-400 ring-2 ring-red-200' : 'border-slate-300'
                         }`}
                       >
-                        <div class="flex items-center justify-between border-b pb-2 mb-2">
-                          <div>
+                        {/* Table Repositioning Handle */}
+                        <div
+                          onMouseDown={(e) => handleTablePointerDown(e, t.id)}
+                          onTouchStart={(e) => handleTablePointerDown(e, t.id)}
+                          class="bg-slate-100 hover:bg-slate-200 cursor-grab active:cursor-grabbing p-2 rounded-t-xl border-b border-slate-200 flex items-center justify-between touch-none"
+                        >
+                          <div class="flex items-center gap-1.5">
+                            <span class="text-slate-400 text-xs font-mono font-bold tracking-tight">⠿ DRAG</span>
                             <input
                               class="font-bold text-xs text-slate-800 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1"
                               defaultValue={t.name}
@@ -416,58 +487,61 @@
                                 setTables(tables.map(tb => tb.id === t.id ? { ...tb, name: e.target.value } : tb));
                               }}
                             />
-                            <div class="text-[10px] text-slate-500 px-1">
-                              {t.type === "circle" ? "Round" : `Rect (${t.unitCount}x)`} • {t.seats.length} / {capacity} seats
-                            </div>
                           </div>
-                          <button onClick={() => removeTable(t.id)} class="text-slate-400 hover:text-red-500 text-xs px-1">✕</button>
+                          <button onClick={() => removeTable(t.id)} class="text-slate-400 hover:text-red-500 text-xs px-1 font-bold">✕</button>
                         </div>
 
-                        {t.type === "rectangle" && (
-                          <div class="flex items-center justify-between bg-slate-50 rounded p-1 mb-2 text-[10px] text-slate-600 border border-slate-100">
-                            <div class="flex items-center gap-1">
-                              <span>Join:</span>
-                              <button onClick={() => changeUnitCount(t.id, -1)} class="px-1.5 bg-slate-200 rounded font-bold">-</button>
-                              <span class="font-bold">{t.unitCount}</span>
-                              <button onClick={() => changeUnitCount(t.id, 1)} class="px-1.5 bg-slate-200 rounded font-bold">+</button>
-                            </div>
-                            <label class="flex items-center gap-1 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={t.useEnds}
-                                onChange={() => toggleEnds(t.id)}
-                                class="rounded text-indigo-600"
-                              />
-                              <span>Ends (+2)</span>
-                            </label>
+                        <div class="p-3">
+                          <div class="text-[10px] text-slate-500 mb-2">
+                            {t.type === "circle" ? "Round Table" : `Rect (${t.unitCount}x joined)`} • {t.seats.length} / {capacity} seats
                           </div>
-                        )}
 
-                        {/* Seated Guests */}
-                        <div class="space-y-1.5 my-2 max-h-48 overflow-y-auto custom-scrollbar">
-                          {t.seats.length === 0 ? (
-                            <div class="text-center py-4 text-[11px] text-slate-300 italic border border-dashed rounded">
-                              Table empty
+                          {t.type === "rectangle" && (
+                            <div class="flex items-center justify-between bg-slate-50 rounded p-1 mb-2 text-[10px] text-slate-600 border border-slate-100">
+                              <div class="flex items-center gap-1">
+                                <span>Units:</span>
+                                <button onClick={() => changeUnitCount(t.id, -1)} class="px-1.5 bg-slate-200 rounded font-bold">-</button>
+                                <span class="font-bold">{t.unitCount}</span>
+                                <button onClick={() => changeUnitCount(t.id, 1)} class="px-1.5 bg-slate-200 rounded font-bold">+</button>
+                              </div>
+                              <label class="flex items-center gap-1 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={t.useEnds}
+                                  onChange={() => toggleEnds(t.id)}
+                                  class="rounded text-indigo-600"
+                                />
+                                <span>Ends (+2)</span>
+                              </label>
                             </div>
-                          ) : (
-                            t.seats.map(gId => {
-                              const guest = guests.find(g => g.id === gId);
-                              if (!guest) return null;
-                              return (
-                                <div key={gId} class="flex items-center justify-between text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1">
-                                  <span class="truncate font-medium text-slate-700">{guest.name}</span>
-                                  <button onClick={() => handleUnseat(gId)} class="text-slate-400 hover:text-red-500 ml-1 font-bold">✕</button>
-                                </div>
-                              );
-                            })
                           )}
-                        </div>
 
-                        {tableViols.map((v, idx) => (
-                          <div key={idx} class="mt-1 text-[10px] bg-red-50 text-red-700 px-2 py-1 rounded border border-red-200">
-                            {v.message}
+                          {/* Seated Guests List */}
+                          <div class="space-y-1 my-1 max-h-44 overflow-y-auto custom-scrollbar">
+                            {t.seats.length === 0 ? (
+                              <div class="text-center py-3 text-[10px] text-slate-300 italic border border-dashed rounded">
+                                Empty Table
+                              </div>
+                            ) : (
+                              t.seats.map(gId => {
+                                const guest = guests.find(g => g.id === gId);
+                                if (!guest) return null;
+                                return (
+                                  <div key={gId} class="flex items-center justify-between text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                                    <span class="truncate font-medium text-slate-700">{guest.name}</span>
+                                    <button onClick={() => handleUnseat(gId)} class="text-slate-400 hover:text-red-500 ml-1 font-bold">✕</button>
+                                  </div>
+                                );
+                              })
+                            )}
                           </div>
-                        ))}
+
+                          {tableViols.map((v, idx) => (
+                            <div key={idx} class="mt-1 text-[10px] bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-200">
+                              {v.message}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
