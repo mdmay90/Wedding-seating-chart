@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Wedding Seating Chart Planner</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    body { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen overflow-hidden select-none">
+  <div id="root" class="h-full"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+
+    const INITIAL_GUESTS = [
+      { id: "g1", name: "Julie Meyers", category: "Family", partnerId: null },
+      { id: "g2", name: "Taylor Meyers", category: "Family", partnerId: "g3" },
+      { id: "g3", name: "Chris Purdy", category: "Family", partnerId: "g2" },
+      { id: "g4", name: "Devin Lakich", category: "Friends", partnerId: "g5" },
+      { id: "g5", name: "Tal Cohen", category: "Friends", partnerId: "g4" },
+      { id: "g6", name: "Reaghan Hoover", category: "Friends", partnerId: "g7" },
+      { id: "g7", name: "Derek Brock", category: "Friends", partnerId: "g6" },
+      { id: "g8", name: "Isabelle Deveaux", category: "Friends", partnerId: null },
+      { id: "g9", name: "Sophia Deveaux", category: "Friends", partnerId: "g10" },
+      { id: "g10", name: "Brooke Dawson", category: "Friends", partnerId: "g9" },
+      { id: "g11", name: "Kate Kinney", category: "Friends", partnerId: "g12" },
+      { id: "g12", name: "Sam Heikel", category: "Friends", partnerId: "g11" },
+      { id: "g13", name: "Kale Rosellini", category: "Friends", partnerId: "g14" },
+      { id: "g14", name: "Matt Rosellini", category: "Friends", partnerId: "g13" },
+      { id: "g15", name: "Megan Darling", category: "Friends", partnerId: "g16" },
+      { id: "g16", name: "Trey Fuller", category: "Friends", partnerId: "g15" },
+      { id: "g17", name: "Kelsey Moburg", category: "Friends", partnerId: null },
+      { id: "g18", name: "Lisa Bruce", category: "Family", partnerId: "g19" },
+      { id: "g19", name: "Dave Evans", category: "Family", partnerId: "g18" },
+      { id: "g20", name: "Diane Lindsey", category: "Family", partnerId: "g21" },
+      { id: "g21", name: "Bob Bruce", category: "Family", partnerId: "g20" },
+      { id: "g22", name: "Steve Bruce", category: "Family", partnerId: null },
+      { id: "g23", name: "Grandma Bruce", category: "Family", partnerId: "g24" },
+      { id: "g24", name: "Grandpa Bruce", category: "Family", partnerId: "g23" },
+      { id: "g25", name: "Madison Chapman", category: "Friends", partnerId: "g26" },
+      { id: "g26", name: "Andrew Zinkan", category: "Friends", partnerId: "g25" },
+      { id: "g27", name: "Lauren Daniel", category: "Friends", partnerId: "g28" },
+      { id: "g28", name: "Jake Young", category: "Friends", partnerId: "g27" },
+      { id: "g29", name: "Lynn Monaghan", category: "Family", partnerId: "g30" },
+      { id: "g30", name: "Ed Monaghan", category: "Family", partnerId: "g29" },
+      { id: "g31", name: "Gail May", category: "Family", partnerId: "g32" },
+      { id: "g32", name: "Andrew May", category: "Family", partnerId: "g31" },
+      { id: "g33", name: "Ben May", category: "Wedding Party", partnerId: "g34" },
+      { id: "g34", name: "Allysa Benedict", category: "Wedding Party", partnerId: "g33" },
+      { id: "g35", name: "Mr. Fukuzawa", category: "Family", partnerId: "g36" },
+      { id: "g36", name: "Mrs. Fukuzawa", category: "Family", partnerId: "g35" },
+      { id: "g37", name: "Janine Wallace", category: "Family", partnerId: "g38" },
+      { id: "g38", name: "Nick Wallace", category: "Family", partnerId: "g37" },
+      { id: "g39", name: "Thad Napier-Dunnings", category: "Friends", partnerId: "g40" },
+      { id: "g40", name: "Michaela Martin", category: "Friends", partnerId: "g39" },
+      { id: "g41", name: "Kristen Latka", category: "Friends", partnerId: "g42" },
+      { id: "g42", name: "Mike Latka", category: "Friends", partnerId: "g41" },
+      { id: "g43", name: "Cassie Skradski", category: "Friends", partnerId: "g44" },
+      { id: "g44", name: "Max Skradski", category: "Friends", partnerId: "g43" },
+      { id: "g45", name: "Joe Fedewa", category: "Friends", partnerId: "g46" },
+      { id: "g46", name: "Amy Nasamran", category: "Friends", partnerId: "g45" },
+      { id: "g47", name: "Yarden Canaan", category: "Friends", partnerId: "g48" },
+      { id: "g48", name: "Kamryn Taylor", category: "Friends", partnerId: "g47" },
+      { id: "g49", name: "Matt Curtis-Watkins", category: "Friends", partnerId: null },
+      { id: "g50", name: "John Hazzard", category: "Friends", partnerId: null },
+      { id: "g51", name: "Ken Vanschoick", category: "Friends", partnerId: null },
+      { id: "g52", name: "Lana Harris", category: "Friends", partnerId: "g53" },
+      { id: "g53", name: "Chris Harris", category: "Friends", partnerId: "g52" },
+      { id: "g54", name: "Stephanie Short", category: "Friends", partnerId: "g55" },
+      { id: "g55", name: "Tom Short", category: "Friends", partnerId: "g54" },
+      { id: "g56", name: "Kandi Hazzard", category: "Friends", partnerId: "g57" },
+      { id: "g57", name: "Chris Hazzard", category: "Friends", partnerId: "g56" },
+      { id: "g58", name: "Jessica Perry", category: "Friends", partnerId: "g59" },
+      { id: "g59", name: "Zach Perry", category: "Friends", partnerId: "g58" }
+    ];
+
+    const INITIAL_TABLES = [
+      { id: "t1", name: "Table 1 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
+      { id: "t2", name: "Table 2 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
+      { id: "t3", name: "Table 3 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
+      { id: "t4", name: "Table 4 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
+      { id: "t5", name: "Table 5 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
+      { id: "t6", name: "Table 6 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
+      { id: "t7", name: "Table 7 (Round)", type: "circle", unitCount: 1, useEnds: false, seats: [] },
+      { id: "t8", name: "Table 8 (Rectangle)", type: "rectangle", unitCount: 1, useEnds: true, seats: [] }
+    ];
+
+    function calculateCapacity(type, units, useEnds) {
+      if (type === "circle") return units * 8;
+      const sideSeats = units * 8;
+      const endSeats = useEnds ? 2 : 0;
+      return sideSeats + endSeats;
+    }
+
+    function App() {
+      // LocalStorage recovery
+      const [guests, setGuests] = useState(() => {
+        const saved = localStorage.getItem("wedding_guests");
+        return saved ? JSON.parse(saved) : INITIAL_GUESTS;
+      });
+
+      const [tables, setTables] = useState(() => {
+        const saved = localStorage.getItem("wedding_tables");
+        return saved ? JSON.parse(saved) : INITIAL_TABLES;
+      });
+
+      const [rules, setRules] = useState(() => {
+        const saved = localStorage.getItem("wedding_rules");
+        return saved ? JSON.parse(saved) : [];
+      });
+
+      useEffect(() => {
+        localStorage.setItem("wedding_guests", JSON.stringify(guests));
+      }, [guests]);
+
+      useEffect(() => {
+        localStorage.setItem("wedding_tables", JSON.stringify(tables));
+      }, [tables]);
+
+      useEffect(() => {
+        localStorage.setItem("wedding_rules", JSON.stringify(rules));
+      }, [rules]);
+
+      const [selectedCategory, setSelectedCategory] = useState("ALL");
+      const [activeTab, setActiveTab] = useState("chart"); // 'chart', 'guests', 'rules'
+      const [newGuestName, setNewGuestName] = useState("");
+      const [newGuestCategory, setNewGuestCategory] = useState("Friends");
+
+      // Rule Form State
+      const [ruleGuestA, setRuleGuestA] = useState("");
+      const [ruleGuestB, setRuleGuestB] = useState("");
+      const [ruleType, setRuleType] = useState("CANNOT_SIT_TOGETHER");
+
+      // Seated guest lookup
+      const seatedGuestMap = useMemo(() => {
+        const map = {};
+        tables.forEach(t => {
+          t.seats.forEach(gId => {
+            if (gId) map[gId] = t.id;
+          });
+        });
+        return map;
+      }, [tables]);
+
+      // Violations detector
+      const violations = useMemo(() => {
+        const viols = [];
+        rules.forEach(rule => {
+          const tableA = seatedGuestMap[rule.guestA];
+          const tableB = seatedGuestMap[rule.guestB];
+          const gA = guests.find(g => g.id === rule.guestA);
+          const gB = guests.find(g => g.id === rule.guestB);
+          if (!gA || !gB) return;
+
+          if (rule.type === "CANNOT_SIT_TOGETHER" && tableA && tableB && tableA === tableB) {
+            viols.push({
+              tableId: tableA,
+              message: `${gA.name} and ${gB.name} cannot be seated at the same table!`
+            });
+          }
+          if (rule.type === "MUST_SIT_TOGETHER" && tableA && tableB && tableA !== tableB) {
+            viols.push({
+              tableId: tableA,
+              message: `${gA.name} and ${gB.name} must sit at the same table!`
+            });
+          }
+        });
+        return viols;
+      }, [rules, seatedGuestMap, guests]);
+
+      // Seat a guest directly (tap or drop)
+      const seatGuest = (guestId, tableId) => {
+        setTables(prev => prev.map(t => {
+          const cleanSeats = t.seats.filter(id => id !== guestId);
+          if (t.id === tableId) {
+            const maxCap = calculateCapacity(t.type, t.unitCount, t.useEnds);
+            if (cleanSeats.length >= maxCap) {
+              alert(`Table "${t.name}" is already full (${maxCap} seats)!`);
+              return t;
+            }
+            return { ...t, seats: [...cleanSeats, guestId] };
+          }
+          return { ...t, seats: cleanSeats };
+        }));
+      };
+
+      const handleUnseat = (guestId) => {
+        setTables(prev => prev.map(t => ({
+          ...t,
+          seats: t.seats.filter(id => id !== guestId)
+        })));
+      };
+
+      // Desktop Drag & Drop handlers
+      const handleDragStart = (e, guestId) => e.dataTransfer.setData("text/plain", guestId);
+      const handleDropOnTable = (e, tableId) => {
+        e.preventDefault();
+        const guestId = e.dataTransfer.getData("text/plain");
+        if (guestId) seatGuest(guestId, tableId);
+      };
+
+      // Table adjustments
+      const addTable = (type) => {
+        const newId = "t_" + Date.now();
+        const name = `Table ${tables.length + 1} (${type === "circle" ? "Round" : "Rectangle"})`;
+        setTables([...tables, { id: newId, name, type, unitCount: 1, useEnds: true, seats: [] }]);
+      };
+
+      const removeTable = (tableId) => {
+        setTables(tables.filter(t => t.id !== tableId));
+      };
+
+      const toggleEnds = (tableId) => {
+        setTables(tables.map(t => {
+          if (t.id !== tableId) return t;
+          const nextEnds = !t.useEnds;
+          const newCap = calculateCapacity(t.type, t.unitCount, nextEnds);
+          return { ...t, useEnds: nextEnds, seats: t.seats.slice(0, newCap) };
+        }));
+      };
+
+      const changeUnitCount = (tableId, delta) => {
+        setTables(tables.map(t => {
+          if (t.id !== tableId) return t;
+          const newCount = Math.max(1, t.unitCount + delta);
+          const newCap = calculateCapacity(t.type, newCount, t.useEnds);
+          return { ...t, unitCount: newCount, seats: t.seats.slice(0, newCap) };
+        }));
+      };
+
+      // Auto-suggest layout algorithm
+      const runSuggestedLayout = () => {
+        let currentTables = tables.map(t => ({ ...t, seats: [] }));
+        const visited = new Set();
+        const clusters = [];
+
+        guests.forEach(g => {
+          if (visited.has(g.id)) return;
+          if (g.partnerId) {
+            const partner = guests.find(p => p.id === g.partnerId);
+            if (partner) {
+              clusters.push([g, partner]);
+              visited.add(g.id);
+              visited.add(partner.id);
+              return;
+            }
+          }
+          clusters.push([g]);
+          visited.add(g.id);
+        });
+
+        clusters.sort((a, b) => a[0].category.localeCompare(b[0].category));
+
+        for (const cluster of clusters) {
+          for (let i = 0; i < currentTables.length; i++) {
+            const t = currentTables[i];
+            const cap = calculateCapacity(t.type, t.unitCount, t.useEnds);
+            if (t.seats.length + cluster.length <= cap) {
+              const conflict = cluster.some(cg =>
+                t.seats.some(seatedId =>
+                  rules.some(r =>
+                    r.type === "CANNOT_SIT_TOGETHER" &&
+                    ((r.guestA === cg.id && r.guestB === seatedId) ||
+                     (r.guestB === cg.id && r.guestA === seatedId))
+                  )
+                )
+              );
+              if (!conflict) {
+                t.seats.push(...cluster.map(cg => cg.id));
+                break;
+              }
+            }
+          }
+        }
+        setTables(currentTables);
+      };
+
+      const unassignedList = guests.filter(g => !seatedGuestMap[g.id] && (selectedCategory === "ALL" || g.category === selectedCategory));
+
+      return (
+        <div class="flex flex-col h-screen overflow-hidden">
+          {/* Main Top Header */}
+          <header class="bg-slate-900 text-white px-4 py-3 flex flex-wrap items-center justify-between shadow-md flex-shrink-0 gap-2">
+            <div>
+              <h1 class="text-base font-bold flex items-center gap-1.5">🥂 Seating Planner</h1>
+              <p class="text-[11px] text-slate-400">Total: {guests.length} | Seated: {Object.keys(seatedGuestMap).length} | Left: {guests.length - Object.keys(seatedGuestMap).length}</p>
+            </div>
+
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button onClick={() => addTable('circle')} class="px-2.5 py-1 bg-indigo-600 active:bg-indigo-700 rounded text-xs font-semibold">
+                + Round
+              </button>
+              <button onClick={() => addTable('rectangle')} class="px-2.5 py-1 bg-blue-600 active:bg-blue-700 rounded text-xs font-semibold">
+                + Rect
+              </button>
+              <button onClick={runSuggestedLayout} class="px-3 py-1 bg-emerald-600 active:bg-emerald-700 rounded text-xs font-bold shadow">
+                ⚡ Auto-Fill
+              </button>
+            </div>
+          </header>
+
+          {/* Navigation Bar */}
+          <div class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs flex-shrink-0">
+            <div class="flex space-x-3">
+              <button onClick={() => setActiveTab('chart')} class={`font-bold pb-1 ${activeTab === 'chart' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500'}`}>Floorplan</button>
+              <button onClick={() => setActiveTab('guests')} class={`font-bold pb-1 ${activeTab === 'guests' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500'}`}>Guest List ({guests.length})</button>
+              <button onClick={() => setActiveTab('rules')} class={`font-bold pb-1 ${activeTab === 'rules' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500'}`}>Rules ({rules.length})</button>
+            </div>
+
+            {violations.length > 0 && (
+              <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[11px] font-bold">
+                ⚠️ {violations.length} Rule Alert
+              </span>
+            )}
+          </div>
+
+          {/* Tab 1: Floorplan & Assignment */}
+          {activeTab === 'chart' && (
+            <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
+              {/* Unseated Guests Panel */}
+              <div class="w-full md:w-80 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col max-h-[38vh] md:max-h-full flex-shrink-0">
+                <div class="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+                  <span class="text-xs font-bold text-slate-600">Unassigned ({unassignedList.length})</span>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    class="text-xs border border-slate-300 rounded px-2 py-1 bg-white"
+                  >
+                    <option value="ALL">All Groups</option>
+                    <option value="Family">Family</option>
+                    <option value="Wedding Party">Wedding Party</option>
+                    <option value="Friends">Friends</option>
+                  </select>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
+                  {unassignedList.length === 0 ? (
+                    <div class="text-center py-6 text-xs text-slate-400">All guests assigned! 🎉</div>
+                  ) : (
+                    unassignedList.map(g => (
+                      <div
+                        key={g.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, g.id)}
+                        class="p-2 bg-slate-50 border border-slate-200 rounded shadow-sm flex flex-col gap-1 text-xs"
+                      >
+                        <div class="flex items-center justify-between">
+                          <span class="font-bold text-slate-800">{g.name}</span>
+                          <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 font-medium">{g.category}</span>
+                        </div>
+
+                        {/* Mobile One-Tap Assignment Dropdown */}
+                        <div class="flex items-center gap-1.5 mt-1 pt-1 border-t border-slate-100">
+                          <span class="text-[10px] text-slate-400">Seat at:</span>
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                seatGuest(g.id, e.target.value);
+                                e.target.value = "";
+                              }
+                            }}
+                            defaultValue=""
+                            class="flex-1 text-[11px] bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200 rounded px-1.5 py-0.5"
+                          >
+                            <option value="" disabled>Choose Table...</option>
+                            {tables.map(t => {
+                              const cap = calculateCapacity(t.type, t.unitCount, t.useEnds);
+                              const full = t.seats.length >= cap;
+                              return (
+                                <option key={t.id} value={t.id} disabled={full}>
+                                  {t.name} ({t.seats.length}/{cap}){full ? ' - Full' : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Table Canvas Grid */}
+              <div class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-100 custom-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {tables.map(t => {
+                    const capacity = calculateCapacity(t.type, t.unitCount, t.useEnds);
+                    const tableViols = violations.filter(v => v.tableId === t.id);
+
+                    return (
+                      <div
+                        key={t.id}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => handleDropOnTable(e, t.id)}
+                        class={`bg-white rounded-xl shadow-sm border p-3.5 flex flex-col justify-between transition-all ${
+                          tableViols.length > 0 ? 'border-red-400 ring-2 ring-red-200' : 'border-slate-200'
+                        }`}
+                      >
+                        <div class="flex items-center justify-between border-b pb-2 mb-2">
+                          <div>
+                            <input
+                              class="font-bold text-xs text-slate-800 bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1"
+                              defaultValue={t.name}
+                              onBlur={(e) => {
+                                setTables(tables.map(tb => tb.id === t.id ? { ...tb, name: e.target.value } : tb));
+                              }}
+                            />
+                            <div class="text-[10px] text-slate-500 px-1">
+                              {t.type === "circle" ? "Round" : `Rect (${t.unitCount}x)`} • {t.seats.length} / {capacity} seats
+                            </div>
+                          </div>
+                          <button onClick={() => removeTable(t.id)} class="text-slate-400 hover:text-red-500 text-xs px-1">✕</button>
+                        </div>
+
+                        {t.type === "rectangle" && (
+                          <div class="flex items-center justify-between bg-slate-50 rounded p-1 mb-2 text-[10px] text-slate-600 border border-slate-100">
+                            <div class="flex items-center gap-1">
+                              <span>Join:</span>
+                              <button onClick={() => changeUnitCount(t.id, -1)} class="px-1.5 bg-slate-200 rounded font-bold">-</button>
+                              <span class="font-bold">{t.unitCount}</span>
+                              <button onClick={() => changeUnitCount(t.id, 1)} class="px-1.5 bg-slate-200 rounded font-bold">+</button>
+                            </div>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={t.useEnds}
+                                onChange={() => toggleEnds(t.id)}
+                                class="rounded text-indigo-600"
+                              />
+                              <span>Ends (+2)</span>
+                            </label>
+                          </div>
+                        )}
+
+                        {/* Seated Guests */}
+                        <div class="space-y-1.5 my-2 max-h-48 overflow-y-auto custom-scrollbar">
+                          {t.seats.length === 0 ? (
+                            <div class="text-center py-4 text-[11px] text-slate-300 italic border border-dashed rounded">
+                              Table empty
+                            </div>
+                          ) : (
+                            t.seats.map(gId => {
+                              const guest = guests.find(g => g.id === gId);
+                              if (!guest) return null;
+                              return (
+                                <div key={gId} class="flex items-center justify-between text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                                  <span class="truncate font-medium text-slate-700">{guest.name}</span>
+                                  <button onClick={() => handleUnseat(gId)} class="text-slate-400 hover:text-red-500 ml-1 font-bold">✕</button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {tableViols.map((v, idx) => (
+                          <div key={idx} class="mt-1 text-[10px] bg-red-50 text-red-700 px-2 py-1 rounded border border-red-200">
+                            {v.message}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Guest List */}
+          {activeTab === 'guests' && (
+            <div class="flex-1 p-4 md:p-6 overflow-y-auto max-w-4xl mx-auto w-full custom-scrollbar">
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                <h3 class="text-xs font-bold text-slate-700 mb-2">Add Guest</h3>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    placeholder="Full name..."
+                    value={newGuestName}
+                    onChange={(e) => setNewGuestName(e.target.value)}
+                    class="flex-1 text-xs border rounded p-2"
+                  />
+                  <select
+                    value={newGuestCategory}
+                    onChange={(e) => setNewGuestCategory(e.target.value)}
+                    class="text-xs border rounded p-2 bg-white"
+                  >
+                    <option value="Family">Family</option>
+                    <option value="Wedding Party">Wedding Party</option>
+                    <option value="Friends">Friends</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (!newGuestName.trim()) return;
+                      setGuests([...guests, { id: "g_" + Date.now(), name: newGuestName.trim(), category: newGuestCategory, partnerId: null }]);
+                      setNewGuestName("");
+                    }}
+                    class="px-4 py-2 bg-indigo-600 text-white rounded text-xs font-bold"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 border-b text-slate-600">
+                    <tr>
+                      <th class="p-2.5">Name</th>
+                      <th class="p-2.5">Group</th>
+                      <th class="p-2.5">Status</th>
+                      <th class="p-2.5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    {guests.map(g => (
+                      <tr key={g.id}>
+                        <td class="p-2.5 font-medium">{g.name}</td>
+                        <td class="p-2.5 text-slate-500">{g.category}</td>
+                        <td class="p-2.5">
+                          {seatedGuestMap[g.id] ? (
+                            <span class="text-emerald-600 font-bold">Seated</span>
+                          ) : (
+                            <span class="text-amber-500">Unseated</span>
+                          )}
+                        </td>
+                        <td class="p-2.5 text-right">
+                          <button
+                            onClick={() => {
+                              handleUnseat(g.id);
+                              setGuests(guests.filter(item => item.id !== g.id));
+                            }}
+                            class="text-red-500 text-xs"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Rules & Constraints */}
+          {activeTab === 'rules' && (
+            <div class="flex-1 p-4 md:p-6 overflow-y-auto max-w-2xl mx-auto w-full custom-scrollbar">
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+                <h3 class="text-xs font-bold text-slate-700 mb-2">Create Constraint</h3>
+                <div class="space-y-2 mb-3">
+                  <select value={ruleGuestA} onChange={(e) => setRuleGuestA(e.target.value)} class="w-full text-xs border rounded p-2 bg-white">
+                    <option value="">Select Guest A...</option>
+                    {guests.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                  <select value={ruleType} onChange={(e) => setRuleType(e.target.value)} class="w-full text-xs border rounded p-2 bg-white">
+                    <option value="CANNOT_SIT_TOGETHER">Cannot sit at the same table as</option>
+                    <option value="MUST_SIT_TOGETHER">Must sit at the same table as</option>
+                  </select>
+                  <select value={ruleGuestB} onChange={(e) => setRuleGuestB(e.target.value)} class="w-full text-xs border rounded p-2 bg-white">
+                    <option value="">Select Guest B...</option>
+                    {guests.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!ruleGuestA || !ruleGuestB || ruleGuestA === ruleGuestB) {
+                      alert("Please choose two different guests.");
+                      return;
+                    }
+                    setRules([...rules, { id: "r_" + Date.now(), guestA: ruleGuestA, guestB: ruleGuestB, type: ruleType }]);
+                    setRuleGuestA("");
+                    setRuleGuestB("");
+                  }}
+                  class="w-full py-2 bg-indigo-600 text-white rounded text-xs font-bold"
+                >
+                  Save Rule
+                </button>
+              </div>
+
+              <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <h3 class="text-xs font-bold text-slate-500 uppercase mb-2">Active Rules ({rules.length})</h3>
+                {rules.length === 0 ? (
+                  <p class="text-xs text-slate-400 py-3 text-center">No rules set yet.</p>
+                ) : (
+                  <div class="space-y-1.5">
+                    {rules.map(r => {
+                      const gA = guests.find(g => g.id === r.guestA)?.name;
+                      const gB = guests.find(g => g.id === r.guestB)?.name;
+                      return (
+                        <div key={r.id} class="flex items-center justify-between p-2 bg-slate-50 border rounded text-xs">
+                          <span><b>{gA}</b> {r.type === 'CANNOT_SIT_TOGETHER' ? 'cannot sit with' : 'must sit with'} <b>{gB}</b></span>
+                          <button onClick={() => setRules(rules.filter(rule => rule.id !== r.id))} class="text-slate-400 hover:text-red-500 font-bold ml-2">✕</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
